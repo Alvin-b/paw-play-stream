@@ -13,6 +13,8 @@ import Discover from "./pages/Discover.tsx";
 import Profile from "./pages/Profile.tsx";
 import Inbox from "./pages/Inbox.tsx";
 import Upload from "./pages/Upload.tsx";
+import UserProfile from "./pages/UserProfile.tsx";
+import LiveStream from "./pages/LiveStream.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/upload" element={<Upload />} />
+            <Route path="/user/:username" element={<UserProfile />} />
+            <Route path="/live" element={<LiveStream />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
