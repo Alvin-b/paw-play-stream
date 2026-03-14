@@ -1,15 +1,19 @@
-import { useState } from "react";
 import { Home, Search, Plus, MessageSquare, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const BottomNav = () => {
-  const [active, setActive] = useState("home");
+interface BottomNavProps {
+  activeTab?: string;
+}
+
+const BottomNav = ({ activeTab = "home" }: BottomNavProps) => {
+  const navigate = useNavigate();
 
   const navItems = [
-    { id: "home", label: "Home", icon: Home },
-    { id: "discover", label: "Discover", icon: Search },
-    { id: "create", label: "", icon: Plus },
-    { id: "inbox", label: "Inbox", icon: MessageSquare },
-    { id: "profile", label: "Profile", icon: User },
+    { id: "home", label: "Home", icon: Home, path: "/" },
+    { id: "discover", label: "Discover", icon: Search, path: "/discover" },
+    { id: "create", label: "", icon: Plus, path: "/upload" },
+    { id: "inbox", label: "Inbox", icon: MessageSquare, path: "/inbox" },
+    { id: "profile", label: "Profile", icon: User, path: "/profile" },
   ];
 
   return (
@@ -20,11 +24,10 @@ const BottomNav = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActive(item.id)}
+                onClick={() => navigate(item.path)}
                 className="relative flex items-center justify-center"
               >
                 <div className="w-12 h-8 rounded-lg relative overflow-hidden">
-                  {/* Layered colored bars behind the plus */}
                   <div className="absolute left-0 top-0 bottom-0 w-10 rounded-lg bg-secondary" />
                   <div className="absolute right-0 top-0 bottom-0 w-10 rounded-lg bg-primary" />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -40,17 +43,17 @@ const BottomNav = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActive(item.id)}
+              onClick={() => navigate(item.path)}
               className="flex flex-col items-center gap-0.5"
             >
               <item.icon
                 className={`w-6 h-6 transition-colors ${
-                  active === item.id ? "text-foreground" : "text-muted-foreground"
+                  activeTab === item.id ? "text-foreground" : "text-muted-foreground"
                 }`}
               />
               <span
                 className={`text-[10px] transition-colors ${
-                  active === item.id ? "text-foreground" : "text-muted-foreground"
+                  activeTab === item.id ? "text-foreground" : "text-muted-foreground"
                 }`}
               >
                 {item.label}
