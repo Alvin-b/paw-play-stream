@@ -5,7 +5,7 @@ const Index = () => {
   return (
     <div className="w-full h-dvh bg-background overflow-hidden">
       <VideoFeed />
-      <BottomNav />
+      <BottomNav activeTab="home" />
     </div>
   );
 };

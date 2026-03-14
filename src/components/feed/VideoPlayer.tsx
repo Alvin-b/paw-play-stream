@@ -3,6 +3,8 @@ import { VideoData } from "@/data/mockVideos";
 import VideoOverlay from "./VideoOverlay";
 import InteractionSidebar from "./InteractionSidebar";
 import HeartBurst from "./HeartBurst";
+import CommentsDrawer from "./CommentsDrawer";
+import ShareModal from "./ShareModal";
 
 interface VideoPlayerProps {
   video: VideoData;
@@ -13,6 +15,8 @@ const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const lastTap = useRef(0);
 
   useEffect(() => {
@@ -41,11 +45,9 @@ const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
   const handleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
-      // Double tap - show heart
       setShowHeart(true);
       setTimeout(() => setShowHeart(false), 800);
     } else {
-      // Single tap - toggle play after delay
       setTimeout(() => {
         if (Date.now() - lastTap.current >= 300) {
           togglePlay();
@@ -67,7 +69,6 @@ const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
         preload="auto"
       />
 
-      {/* Play/Pause indicator */}
       {!isPlaying && isActive && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
           <div className="w-16 h-16 rounded-full bg-background/30 backdrop-blur-sm flex items-center justify-center">
@@ -78,14 +79,20 @@ const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
         </div>
       )}
 
-      {/* Heart burst on double tap */}
       {showHeart && <HeartBurst />}
-
-      {/* Bottom overlay with user info */}
       <VideoOverlay video={video} />
-
-      {/* Right side interaction buttons */}
-      <InteractionSidebar video={video} />
+      <InteractionSidebar
+        video={video}
+        onCommentClick={() => setShowComments(true)}
+        onShareClick={() => setShowShare(true)}
+      />
+      <CommentsDrawer
+        videoId={video.id}
+        commentsCount={video.comments}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+      />
+      <ShareModal isOpen={showShare} onClose={() => setShowShare(false)} />
     </div>
   );
 };
