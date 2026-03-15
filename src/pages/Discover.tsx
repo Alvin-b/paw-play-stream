@@ -1,33 +1,80 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, X, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/navigation/BottomNav";
 
-const trendingHashtags = [
-  { name: "fyp", views: "142.5B", videoCount: "12.4M" },
-  { name: "viral", views: "98.2B", videoCount: "8.1M" },
-  { name: "dance", views: "67.8B", videoCount: "5.2M" },
-  { name: "comedy", views: "54.3B", videoCount: "4.8M" },
-  { name: "cooking", views: "43.1B", videoCount: "3.9M" },
-  { name: "fitness", views: "38.7B", videoCount: "3.2M" },
-  { name: "music", views: "35.2B", videoCount: "2.8M" },
-  { name: "travel", views: "29.4B", videoCount: "2.1M" },
-  { name: "fashion", views: "24.8B", videoCount: "1.9M" },
-  { name: "pets", views: "21.3B", videoCount: "1.7M" },
-];
+interface HashtagData {
+  name: string;
+  video_count: number;
+  views_count: number;
+}
 
-const suggestedAccounts = [
-  { username: "dancequeen", displayName: "Dance Queen 💃", avatar: "https://i.pravatar.cc/150?img=20", followers: "2.4M" },
-  { username: "chef_master", displayName: "Chef Master", avatar: "https://i.pravatar.cc/150?img=21", followers: "1.8M" },
-  { username: "travelwith_me", displayName: "Travel With Me ✈️", avatar: "https://i.pravatar.cc/150?img=22", followers: "956K" },
-  { username: "fitlife", displayName: "Fit Life", avatar: "https://i.pravatar.cc/150?img=23", followers: "1.2M" },
-];
+interface ProfileData {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  followers_count: number;
+  user_id: string;
+}
+
+const formatCount = (n: number) => {
+  if (n >= 1000000000) return (n / 1000000000).toFixed(1) + "B";
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return n.toString();
+};
 
 const Discover = () => {
   const [query, setQuery] = useState("");
+  const [hashtags, setHashtags] = useState<HashtagData[]>([]);
+  const [profiles, setProfiles] = useState<ProfileData[]>([]);
+  const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchTrending = async () => {
+      const { data: hashtagData } = await supabase
+        .from("hashtags")
+        .select("name, video_count, views_count")
+        .order("views_count", { ascending: false })
+        .limit(15);
+      setHashtags(hashtagData || []);
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("username, display_name, avatar_url, followers_count, user_id")
+        .order("followers_count", { ascending: false })
+        .limit(10);
+      setProfiles(profileData || []);
+    };
+    fetchTrending();
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, display_name, avatar_url, followers_count, user_id")
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .limit(20);
+      setSearchResults(data || []);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const handleFollow = async (userId: string) => {
+    if (!user) { navigate("/login"); return; }
+    await supabase.from("follows").insert({ follower_id: user.id, following_id: userId });
+  };
+
+  const displayProfiles = query.trim() ? searchResults : profiles;
 
   return (
     <div className="min-h-dvh bg-background pb-16">
-      {/* Search bar */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-4 pt-3 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -47,15 +94,14 @@ const Discover = () => {
       </div>
 
       {/* Trending Hashtags */}
-      <div className="px-4 mt-4">
-        <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-primary" />
-          Trending
-        </h2>
-        <div className="space-y-1">
-          {trendingHashtags
-            .filter((h) => !query || h.name.includes(query.toLowerCase()))
-            .map((tag) => (
+      {!query.trim() && hashtags.length > 0 && (
+        <div className="px-4 mt-4">
+          <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            Trending
+          </h2>
+          <div className="space-y-1">
+            {hashtags.map((tag) => (
               <button
                 key={tag.name}
                 className="w-full flex items-center justify-between py-3 px-2 rounded-lg hover:bg-muted/50 transition-colors"
@@ -66,34 +112,59 @@ const Discover = () => {
                   </div>
                   <div className="text-left">
                     <p className="text-foreground text-sm font-semibold">#{tag.name}</p>
-                    <p className="text-muted-foreground text-xs">{tag.views} views</p>
+                    <p className="text-muted-foreground text-xs">{formatCount(tag.views_count || 0)} views</p>
                   </div>
                 </div>
-                <span className="text-muted-foreground text-xs">{tag.videoCount} videos</span>
+                <span className="text-muted-foreground text-xs">{formatCount(tag.video_count || 0)} videos</span>
               </button>
             ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Suggested Accounts */}
+      {/* Accounts */}
       <div className="px-4 mt-6">
-        <h2 className="text-lg font-bold text-foreground mb-3">Suggested accounts</h2>
-        <div className="space-y-1">
-          {suggestedAccounts.map((account) => (
-            <div key={account.username} className="flex items-center justify-between py-3 px-2">
-              <div className="flex items-center gap-3">
-                <img src={account.avatar} alt={account.username} className="w-11 h-11 rounded-full object-cover" />
-                <div>
-                  <p className="text-foreground text-sm font-semibold">{account.username}</p>
-                  <p className="text-muted-foreground text-xs">{account.displayName} · {account.followers}</p>
-                </div>
+        <h2 className="text-lg font-bold text-foreground mb-3">
+          {query.trim() ? "Search results" : "Suggested accounts"}
+        </h2>
+        {displayProfiles.length > 0 ? (
+          <div className="space-y-1">
+            {displayProfiles.map((account) => (
+              <div key={account.user_id} className="flex items-center justify-between py-3 px-2">
+                <button
+                  onClick={() => navigate(`/user/${account.username}`)}
+                  className="flex items-center gap-3 flex-1 min-w-0"
+                >
+                  <div className="w-11 h-11 rounded-full bg-muted overflow-hidden shrink-0">
+                    {account.avatar_url ? (
+                      <img src={account.avatar_url} alt={account.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm font-bold text-muted-foreground">
+                        {account.username[0]?.toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-foreground text-sm font-semibold truncate">{account.username}</p>
+                    <p className="text-muted-foreground text-xs truncate">{account.display_name} · {formatCount(account.followers_count || 0)} followers</p>
+                  </div>
+                </button>
+                {user?.id !== account.user_id && (
+                  <button
+                    onClick={() => handleFollow(account.user_id)}
+                    className="px-5 py-1.5 rounded bg-primary text-primary-foreground text-xs font-semibold shrink-0"
+                  >
+                    Follow
+                  </button>
+                )}
               </div>
-              <button className="px-5 py-1.5 rounded bg-primary text-primary-foreground text-xs font-semibold">
-                Follow
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm text-center py-8">
+            {query.trim() ? "No results found" : "No accounts yet"}
+          </p>
+        )}
       </div>
 
       <BottomNav activeTab="discover" />

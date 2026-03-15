@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
 import { VideoData } from "@/data/mockVideos";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToggleLike, useToggleBookmark } from "@/hooks/useVideos";
+import { useNavigate } from "react-router-dom";
 
 interface InteractionSidebarProps {
   video: VideoData;
@@ -15,25 +18,40 @@ const formatCount = (num: number): string => {
 };
 
 const InteractionSidebar = ({ video, onCommentClick, onShareClick }: InteractionSidebarProps) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const toggleLike = useToggleLike();
+  const toggleBookmark = useToggleBookmark();
   const [liked, setLiked] = useState(video.isLiked);
   const [bookmarked, setBookmarked] = useState(video.isBookmarked);
   const [likeCount, setLikeCount] = useState(video.likes);
 
-  const handleLike = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setLiked(!liked);
-    setLikeCount(prev => liked ? prev - 1 : prev + 1);
+    if (!user) { navigate("/login"); return; }
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
+    await toggleLike(video.id, wasLiked);
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setBookmarked(!bookmarked);
+    if (!user) { navigate("/login"); return; }
+    const wasBookmarked = bookmarked;
+    setBookmarked(!wasBookmarked);
+    await toggleBookmark(video.id, wasBookmarked);
+  };
+
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/user/${video.user.username}`);
   };
 
   return (
     <div className="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-5">
       {/* Avatar */}
-      <div className="relative mb-2">
+      <button onClick={handleProfileClick} className="relative mb-2">
         <img
           src={video.user.avatar}
           alt={video.user.username}
@@ -44,7 +62,7 @@ const InteractionSidebar = ({ video, onCommentClick, onShareClick }: Interaction
             <span className="text-primary-foreground text-xs font-bold leading-none">+</span>
           </div>
         )}
-      </div>
+      </button>
 
       {/* Like */}
       <button onClick={handleLike} className="flex flex-col items-center gap-1">

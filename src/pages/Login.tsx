@@ -18,7 +18,11 @@ const Login = () => {
     setLoading(true);
     const { error } = await signIn(email, password);
     if (error) {
-      setError(error.message);
+      if (error.message.includes("Email not confirmed")) {
+        setError("Please check your email and confirm your account before logging in.");
+      } else {
+        setError(error.message);
+      }
     } else {
       navigate("/");
     }
@@ -62,7 +66,16 @@ const Login = () => {
             </button>
           </div>
 
-          {error && <p className="text-primary text-sm">{error}</p>}
+          {error && (
+            <div className="text-sm">
+              <p className="text-destructive">{error}</p>
+              {error.includes("confirm") && (
+                <Link to="/signup" className="text-primary text-xs mt-1 block">
+                  Resend confirmation email →
+                </Link>
+              )}
+            </div>
+          )}
 
           <Link to="/forgot-password" className="block text-xs text-muted-foreground hover:text-foreground">
             Forgot password?

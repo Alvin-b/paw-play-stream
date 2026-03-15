@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Send } from "lucide-react";
+import { X, Send, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,36 +22,104 @@ interface CommentsDrawerProps {
   onClose: () => void;
 }
 
+const timeAgo = (date: string) => {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+};
+
 const CommentsDrawer = ({ videoId, commentsCount, isOpen, onClose }: CommentsDrawerProps) => {
   const { user, profile } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [count, setCount] = useState(commentsCount);
 
-  // Mock comments for now (will use real data when videos exist)
   useEffect(() => {
-    if (isOpen) {
-      setComments([
-        { id: "1", content: "This is amazing! 🔥", created_at: "2h ago", likes_count: 234, user: { username: "dancequeen", avatar_url: "https://i.pravatar.cc/150?img=20" } },
-        { id: "2", content: "Teach me how to do this please 🙏", created_at: "3h ago", likes_count: 45, user: { username: "newbie_creator", avatar_url: "https://i.pravatar.cc/150?img=30" } },
-        { id: "3", content: "Song name?", created_at: "5h ago", likes_count: 12, user: { username: "musiclover", avatar_url: "https://i.pravatar.cc/150?img=31" } },
-        { id: "4", content: "POV: You found this at 3am 😂", created_at: "8h ago", likes_count: 567, user: { username: "nightowl", avatar_url: "https://i.pravatar.cc/150?img=32" } },
-        { id: "5", content: "Following for more content like this", created_at: "1d ago", likes_count: 23, user: { username: "superfan", avatar_url: "https://i.pravatar.cc/150?img=33" } },
-      ]);
-    }
+    if (!isOpen) return;
+
+    const fetchComments = async () => {
+      const { data: commentsData } = await supabase
+        .from("comments")
+        .select("*")
+        .eq("video_id", videoId)
+        .is("parent_id", null)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        return;
+      }
+
+      const userIds = [...new Set(commentsData.map((c) => c.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, username, avatar_url")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
+
+      setComments(
+        commentsData.map((c) => {
+          const p = profileMap.get(c.user_id);
+          return {
+            id: c.id,
+            content: c.content,
+            created_at: c.created_at,
+            likes_count: c.likes_count || 0,
+            user: {
+              username: p?.username || "unknown",
+              avatar_url: p?.avatar_url || "",
+            },
+          };
+        })
+      );
+    };
+
+    fetchComments();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel(`comments-${videoId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "comments",
+        filter: `video_id=eq.${videoId}`,
+      }, async (payload) => {
+        const newC = payload.new as any;
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("username, avatar_url")
+          .eq("user_id", newC.user_id)
+          .single();
+
+        setComments((prev) => [{
+          id: newC.id,
+          content: newC.content,
+          created_at: newC.created_at,
+          likes_count: 0,
+          user: { username: p?.username || "unknown", avatar_url: p?.avatar_url || "" },
+        }, ...prev]);
+        setCount((c) => c + 1);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [isOpen, videoId]);
 
   const handleSend = async () => {
     if (!newComment.trim() || !user) return;
-    const comment: Comment = {
-      id: Date.now().toString(),
-      content: newComment,
-      created_at: "Just now",
-      likes_count: 0,
-      user: { username: profile?.username || "you", avatar_url: profile?.avatar_url || "" },
-    };
-    setComments([comment, ...comments]);
+    const content = newComment.trim();
     setNewComment("");
+
+    await supabase.from("comments").insert({
+      video_id: videoId,
+      user_id: user.id,
+      content,
+    });
   };
 
   return (
@@ -72,14 +140,17 @@ const CommentsDrawer = ({ videoId, commentsCount, isOpen, onClose }: CommentsDra
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl max-h-[70vh] flex flex-col"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <span className="text-foreground font-semibold text-sm">{commentsCount} comments</span>
+              <span className="text-foreground font-semibold text-sm">{count} comments</span>
               <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
 
-            {/* Comments list */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+              {comments.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground text-sm">No comments yet. Be the first!</p>
+                </div>
+              )}
               {comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   <div className="w-9 h-9 rounded-full bg-muted overflow-hidden shrink-0">
@@ -95,21 +166,18 @@ const CommentsDrawer = ({ videoId, commentsCount, isOpen, onClose }: CommentsDra
                     <p className="text-xs text-muted-foreground font-semibold">{comment.user.username}</p>
                     <p className="text-sm text-foreground mt-0.5">{comment.content}</p>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[10px] text-muted-foreground">{comment.created_at}</span>
+                      <span className="text-[10px] text-muted-foreground">{timeAgo(comment.created_at)}</span>
                       <button className="text-[10px] text-muted-foreground font-semibold">Reply</button>
                     </div>
                   </div>
                   <button className="flex flex-col items-center gap-0.5 pt-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
+                    <Heart className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">{comment.likes_count}</span>
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Input */}
             <div className="px-4 py-3 border-t border-border flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-muted overflow-hidden shrink-0">
                 {profile?.avatar_url ? (

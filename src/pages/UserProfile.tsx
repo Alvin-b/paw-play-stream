@@ -6,6 +6,18 @@ import { ArrowLeft, Share2, Grid3X3 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import BottomNav from "@/components/navigation/BottomNav";
 
+interface VideoItem {
+  id: string;
+  video_url: string;
+  views_count: number;
+}
+
+const formatCount = (n: number) => {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return n.toString();
+};
+
 const UserProfile = () => {
   const { username } = useParams();
   const navigate = useNavigate();
@@ -13,6 +25,7 @@ const UserProfile = () => {
   const [profile, setProfile] = useState<Tables<"profiles"> | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -23,14 +36,25 @@ const UserProfile = () => {
         .single();
       setProfile(data);
 
-      if (data && user) {
-        const { data: followData } = await supabase
-          .from("follows")
-          .select("id")
-          .eq("follower_id", user.id)
-          .eq("following_id", data.user_id)
-          .maybeSingle();
-        setIsFollowing(!!followData);
+      if (data) {
+        // Fetch user videos
+        const { data: vids } = await supabase
+          .from("videos")
+          .select("id, video_url, views_count")
+          .eq("user_id", data.user_id)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        setVideos(vids || []);
+
+        if (user) {
+          const { data: followData } = await supabase
+            .from("follows")
+            .select("id")
+            .eq("follower_id", user.id)
+            .eq("following_id", data.user_id)
+            .maybeSingle();
+          setIsFollowing(!!followData);
+        }
       }
       setLoading(false);
     };
@@ -88,15 +112,15 @@ const UserProfile = () => {
 
         <div className="flex gap-6 mt-4">
           <div className="text-center">
-            <p className="text-foreground font-bold text-lg">{profile.following_count || 0}</p>
+            <p className="text-foreground font-bold text-lg">{formatCount(profile.following_count || 0)}</p>
             <p className="text-muted-foreground text-xs">Following</p>
           </div>
           <div className="text-center">
-            <p className="text-foreground font-bold text-lg">{profile.followers_count || 0}</p>
+            <p className="text-foreground font-bold text-lg">{formatCount(profile.followers_count || 0)}</p>
             <p className="text-muted-foreground text-xs">Followers</p>
           </div>
           <div className="text-center">
-            <p className="text-foreground font-bold text-lg">{profile.likes_count || 0}</p>
+            <p className="text-foreground font-bold text-lg">{formatCount(profile.likes_count || 0)}</p>
             <p className="text-muted-foreground text-xs">Likes</p>
           </div>
         </div>
@@ -104,16 +128,21 @@ const UserProfile = () => {
         <p className="text-muted-foreground text-sm mt-3 px-8 text-center">{profile.bio || "No bio yet."}</p>
 
         {!isOwnProfile && (
-          <button
-            onClick={handleFollow}
-            className={`mt-4 px-8 py-2 rounded-lg text-sm font-semibold ${
-              isFollowing
-                ? "bg-muted text-foreground"
-                : "bg-primary text-primary-foreground"
-            }`}
-          >
-            {isFollowing ? "Following" : "Follow"}
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleFollow}
+              className={`px-8 py-2 rounded-lg text-sm font-semibold ${
+                isFollowing
+                  ? "bg-muted text-foreground"
+                  : "bg-primary text-primary-foreground"
+              }`}
+            >
+              {isFollowing ? "Following" : "Follow"}
+            </button>
+            <button className="px-4 py-2 rounded-lg bg-muted text-foreground text-sm font-semibold">
+              Message
+            </button>
+          </div>
         )}
       </div>
 
@@ -123,9 +152,25 @@ const UserProfile = () => {
         </button>
       </div>
 
-      <div className="flex items-center justify-center py-16">
-        <p className="text-muted-foreground text-sm">No videos yet</p>
-      </div>
+      {videos.length > 0 ? (
+        <div className="grid grid-cols-3 gap-0.5 p-0.5">
+          {videos.map((v) => (
+            <div key={v.id} className="aspect-[9/16] bg-muted relative overflow-hidden">
+              <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+              <div className="absolute bottom-1 left-1 flex items-center gap-0.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-foreground">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+                <span className="text-foreground text-[10px] font-medium">{formatCount(v.views_count || 0)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center py-16">
+          <p className="text-muted-foreground text-sm">No videos yet</p>
+        </div>
+      )}
 
       <BottomNav />
     </div>
