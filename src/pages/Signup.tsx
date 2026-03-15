@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +14,7 @@ const Signup = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [resending, setResending] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -26,6 +29,12 @@ const Signup = () => {
       return;
     }
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await signUp(email, password, username, displayName || username);
     if (error) {
       setError(error.message);
@@ -35,15 +44,46 @@ const Signup = () => {
     setLoading(false);
   };
 
+  const handleResendEmail = async () => {
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Confirmation email resent!");
+    }
+    setResending(false);
+  };
+
   if (success) {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-8">
         <div className="w-full max-w-sm text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-primary" />
+          </div>
           <h1 className="text-3xl font-bold text-foreground mb-4">Check your email</h1>
-          <p className="text-muted-foreground text-sm mb-8">
-            We sent a confirmation link to <strong className="text-foreground">{email}</strong>
+          <p className="text-muted-foreground text-sm mb-2">
+            We sent a confirmation link to
           </p>
-          <Link to="/login" className="text-primary font-semibold text-sm">Back to login</Link>
+          <p className="text-foreground font-semibold text-sm mb-6">{email}</p>
+          <p className="text-muted-foreground text-xs mb-6">
+            Click the link in the email to verify your account. Check your spam folder if you don't see it.
+          </p>
+          <button
+            onClick={handleResendEmail}
+            disabled={resending}
+            className="w-full h-12 rounded-lg bg-muted text-foreground font-semibold text-sm disabled:opacity-50 mb-3"
+          >
+            {resending ? "Resending..." : "Resend confirmation email"}
+          </button>
+          <Link to="/login" className="text-primary font-semibold text-sm">
+            Back to login
+          </Link>
         </div>
       </div>
     );
@@ -100,7 +140,7 @@ const Signup = () => {
             </button>
           </div>
 
-          {error && <p className="text-primary text-sm">{error}</p>}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <button
             type="submit"

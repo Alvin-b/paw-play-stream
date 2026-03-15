@@ -120,4 +120,23 @@
   .animate-pulse-live {
     animation: pulse-live 1.5s ease-in-out infinite;
   }
+
+  @keyframes float-up {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    50% { transform: translateY(-80px) scale(1.2); opacity: 0.8; }
+    100% { transform: translateY(-200px) scale(0.8); opacity: 0; }
+  }
+
+  .animate-float-up {
+    animation: float-up 2s ease-out forwards;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .animate-marquee {
+    animation: marquee 8s linear infinite;
+  }
 }

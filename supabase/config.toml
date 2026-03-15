@@ -1,1 +1,4 @@
 project_id = "bnathmrkpmiwfyezrwaz"
+
+[functions.recommend-videos]
+verify_jwt = false
