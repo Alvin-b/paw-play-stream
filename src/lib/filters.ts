@@ -1,12 +1,23 @@
 export interface VideoFilter {
   name: string;
   css: string;
-  category: "none" | "color" | "mood" | "retro" | "artistic" | "beauty" | "cinematic";
+  category: "none" | "color" | "mood" | "retro" | "artistic" | "beauty" | "cinematic" | "ar";
+  intensity?: number;
 }
 
 export const VIDEO_FILTERS: VideoFilter[] = [
   // None
   { name: "Normal", css: "", category: "none" },
+
+  // AR Face Filters (Simulated beauty effects)
+  { name: "Glow", css: "brightness(1.15) contrast(1.05) saturate(1.2)", category: "ar", intensity: 1 },
+  { name: "Soft", css: "brightness(1.08) contrast(0.95) blur(0.3px) saturate(1.05)", category: "ar", intensity: 1 },
+  { name: "Porcelain", css: "brightness(1.15) contrast(0.92) saturate(0.85)", category: "ar", intensity: 1 },
+  { name: "Warm", css: "brightness(1.1) sepia(0.1) saturate(1.15)", category: "ar", intensity: 1 },
+  { name: "Crystal", css: "brightness(1.2) contrast(0.9) saturate(0.9)", category: "ar", intensity: 1 },
+  { name: "Rose", css: "brightness(1.05) sepia(0.15) saturate(1.3)", category: "ar", intensity: 1 },
+  { name: "Sunrise", css: "brightness(1.12) sepia(0.2) saturate(1.4)", category: "ar", intensity: 1 },
+  { name: "Pearl", css: "brightness(1.18) contrast(0.88) saturate(0.95)", category: "ar", intensity: 1 },
 
   // Color filters
   { name: "Vivid", css: "saturate(1.8) contrast(1.15)", category: "color" },
@@ -54,6 +65,7 @@ export const VIDEO_FILTERS: VideoFilter[] = [
 
 export const FILTER_CATEGORIES = [
   { id: "none" as const, label: "All" },
+  { id: "ar" as const, label: "AR" },
   { id: "color" as const, label: "Color" },
   { id: "mood" as const, label: "Mood" },
   { id: "retro" as const, label: "Retro" },
@@ -63,5 +75,17 @@ export const FILTER_CATEGORIES = [
 ];
 
 export const LIVE_FILTERS = VIDEO_FILTERS.filter(
-  (f) => f.category === "beauty" || f.category === "color" || f.category === "mood" || f.name === "Normal"
+  (f) => f.category === "ar" || f.category === "beauty" || f.category === "color" || f.category === "mood" || f.name === "Normal"
 );
+
+// Voice effects for audio (to be used with Web Audio API)
+export const VOICE_EFFECTS = [
+  { name: "Normal", value: "normal", pitch: 1, rate: 1 },
+  { name: "Deep Voice", value: "deep", pitch: 0.7, rate: 0.9 },
+  { name: "High Voice", value: "high", pitch: 1.4, rate: 1.1 },
+  { name: "Robot", value: "robot", pitch: 0.9, rate: 0.95 },
+  { name: "Chipmunk", value: "chipmunk", pitch: 1.8, rate: 1.3 },
+  { name: "Alien", value: "alien", pitch: 0.6, rate: 1.05 },
+  { name: "Echo", value: "echo", pitch: 1, rate: 1, echo: true },
+  { name: "Reverb", value: "reverb", pitch: 1, rate: 1, reverb: true },
+];
