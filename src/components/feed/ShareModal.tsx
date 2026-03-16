@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from 
-;
+import { AnimatePresence, motion } from "framer-motion";
 import { X, Link as LinkIcon, MessageCircle, Copy, Flag, Layers, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
