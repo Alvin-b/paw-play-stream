@@ -51,7 +51,7 @@ const Discover = () => {
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
   const [showAITrends, setShowAITrends] = useState(false);
-  const [categories, setCategories] = useState<CategoryData[]>([
+  const [categories] = useState<CategoryData[]>([
     { id: "1", name: "Dance", icon: "💃", video_count: 125000 },
     { id: "2", name: "Comedy", icon: "😂", video_count: 98000 },
     { id: "3", name: "Music", icon: "🎵", video_count: 87000 },
@@ -66,21 +66,18 @@ const Discover = () => {
 
   useEffect(() => {
     const fetchTrending = async () => {
-      // Fetch hashtags with trend direction (simulated)
       const { data: hashtagData } = await supabase
         .from("hashtags")
         .select("name, video_count, views_count")
         .order("views_count", { ascending: false })
         .limit(20);
       
-      // Add simulated trend direction
       const hashtagsWithTrend = (hashtagData || []).map((tag, i) => ({
         ...tag,
-trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | "stable",
+        trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | "stable",
       }));
       setHashtags(hashtagsWithTrend);
 
-      // Fetch profiles
       const { data: profileData } = await supabase
         .from("profiles")
         .select("username, display_name, avatar_url, followers_count, user_id")
@@ -88,7 +85,6 @@ trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | 
         .limit(10);
       setProfiles(profileData || []);
 
-      // Fetch sounds (from videos with audio)
       const { data: videosWithAudio } = await supabase
         .from("videos")
         .select("id, audio_url, music_name, user_id")
@@ -204,7 +200,6 @@ trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | 
 
       {activeTab === "forYou" && !query.trim() && (
         <div className="px-4 mt-2">
-          {/* Categories Grid */}
           <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
             Categories
@@ -226,7 +221,7 @@ trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | 
       )}
 
       {/* Trending Tab */}
-      {(activeTab === "trending" || !query.trim()) && hashtags.length > 0 && (
+      {(activeTab === "trending" || (!query.trim() && activeTab !== "ai")) && hashtags.length > 0 && (
         <div className="px-4 mt-2">
           <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />

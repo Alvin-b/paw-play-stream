@@ -23,6 +23,7 @@ export interface VideoWithProfile {
     display_name: string;
     avatar_url: string | null;
     verified: boolean | null;
+    isFollowing?: boolean;
   };
   isLiked: boolean;
   isBookmarked: boolean;

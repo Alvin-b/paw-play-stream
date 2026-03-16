@@ -6,8 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import VideoOverlay from "./VideoOverlay";
 import InteractionSidebar from "./InteractionSidebar";
 import HeartBurst from "./HeartBurst";
-import CommentsDrawer from "./CommentsDrawer";
-import ShareModal from "./ShareModal";
+import { useToggleLike } from "@/hooks/useVideos";
+import React, { Suspense } from "react";
+const CommentsDrawer = React.lazy(() => import("./CommentsDrawer"));
+const ShareModal = React.lazy(() => import("./ShareModal"));
 
 interface VideoPlayerProps {
   video: VideoData;
@@ -22,12 +24,33 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
+  const [heartPos, setHeartPos] = useState<{ x?: number; y?: number } | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [progress, setProgress] = useState(0);
   const lastTap = useRef(0);
   const watchStart = useRef<number>(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const toggleLike = useToggleLike();
+
+  // keyboard ref
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // keyboard handler (space: play/pause, l: like)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      togglePlay();
+    }
+    if (e.key.toLowerCase() === "l") {
+      e.preventDefault();
+      // optimistic UI toggle
+      toggleLike.mutate({ videoId: video.id, isLiked: video.isLiked });
+      setShowHeart(true);
+      setHeartPos(null);
+      setTimeout(() => setShowHeart(false), 800);
+    }
+  }, [togglePlay, toggleLike, video.id, video.isLiked]);
 
   // Handle touch gestures
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -146,11 +169,44 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
     }
   }, [isMuted]);
 
-  const handleTap = useCallback(() => {
+  const handleTap = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
     const now = Date.now();
+
+    // Capture coordinates
+    let clientX: number | undefined;
+    let clientY: number | undefined;
+    if (e && 'changedTouches' in e && e.changedTouches?.[0]) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else if (e && 'clientX' in e && (e as React.MouseEvent).clientX !== undefined) {
+      const me = e as React.MouseEvent;
+      clientX = me.clientX;
+      clientY = me.clientY;
+    }
+
     if (now - lastTap.current < 300) {
+      // double tap: like
       setShowHeart(true);
-      setTimeout(() => setShowHeart(false), 800);
+
+      if (clientX !== undefined && clientY !== undefined && containerRef.current) {
+        // Convert viewport coords to container-local coords and clamp so heart doesn't overflow
+        const rect = containerRef.current.getBoundingClientRect();
+        const clampedX = Math.max(48, Math.min(rect.width - 48, clientX - rect.left));
+        const clampedY = Math.max(48, Math.min(rect.height - 48, clientY - rect.top));
+        setHeartPos({ x: clampedX, y: clampedY });
+      } else {
+        setHeartPos(null);
+      }
+
+      setTimeout(() => {
+        setShowHeart(false);
+        setHeartPos(null);
+      }, 800);
+      try {
+        toggleLike.mutate({ videoId: video.id, isLiked: video.isLiked });
+      } catch (err) {
+        // ignore
+      }
     } else {
       setTimeout(() => {
         if (Date.now() - lastTap.current >= 300) {
@@ -162,14 +218,19 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
       }, 300);
     }
     lastTap.current = now;
-  }, [togglePlay, isMuted]);
+  }, [togglePlay, isMuted, toggleLike, video.id, video.isLiked]);
 
   return (
     <div 
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
       className="snap-item relative w-full bg-background" 
       onClick={handleTap}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      data-active={isActive}
+      aria-label={`video-${video.id}`}
     >
       <video
         ref={videoRef}
@@ -226,20 +287,27 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
         </div>
       )}
 
-      {showHeart && <HeartBurst />}
+      {showHeart && <HeartBurst x={heartPos?.x} y={heartPos?.y} />}
       <VideoOverlay video={video} />
       <InteractionSidebar
         video={video}
         onCommentClick={() => setShowComments(true)}
         onShareClick={() => setShowShare(true)}
       />
-      <CommentsDrawer
-        videoId={video.id}
-        commentsCount={video.comments}
-        isOpen={showComments}
-        onClose={() => setShowComments(false)}
-      />
-      <ShareModal isOpen={showShare} onClose={() => setShowShare(false)} />
+      <Suspense fallback={null}>
+        {showComments && (
+          <CommentsDrawer
+            videoId={video.id}
+            commentsCount={video.comments}
+            isOpen={showComments}
+            onClose={() => setShowComments(false)}
+          />
+        )}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        {showShare && <ShareModal isOpen={showShare} onClose={() => setShowShare(false)} />}
+      </Suspense>
     </div>
   );
 };

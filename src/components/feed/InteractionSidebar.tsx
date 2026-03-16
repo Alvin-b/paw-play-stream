@@ -49,7 +49,7 @@ const InteractionSidebar = ({ video, onCommentClick, onShareClick }: Interaction
   };
 
   return (
-    <div className="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-5">
+    <div className="absolute right-4 bottom-28 z-20 flex flex-col items-center gap-6 max-w-[72px]">
       {/* Avatar */}
       <button onClick={handleProfileClick} className="relative mb-2">
         <img

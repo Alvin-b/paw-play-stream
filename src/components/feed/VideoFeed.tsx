@@ -61,7 +61,7 @@ const VideoFeed = () => {
   }, [hasMore, loadingMore, loadMore]);
 
   return (
-    <div className="relative w-full h-dvh max-w-lg mx-auto bg-background">
+    <div className="relative w-full h-full mx-auto bg-background">
       <FeedHeader activeTab={feedType} onTabChange={setFeedType} />
       {loading && videos.length === 0 ? (
         <div className="h-dvh flex items-center justify-center">
