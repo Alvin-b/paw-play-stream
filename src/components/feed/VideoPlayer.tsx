@@ -36,6 +36,24 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
   // keyboard ref
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // Define togglePlay first so it can be used in other callbacks
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+      if (audioRef.current && video.audioUrl) {
+        audioRef.current.play().catch(() => {});
+      }
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    }
+  }, [video.audioUrl]);
+
   // keyboard handler (space: play/pause, l: like)
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.code === "Space") {
@@ -142,23 +160,6 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
     const pct = (e.clientX - rect.left) / rect.width;
     videoRef.current.currentTime = pct * videoRef.current.duration;
   }, []);
-
-  const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
-      if (audioRef.current && video.audioUrl) {
-        audioRef.current.play().catch(() => {});
-      }
-    } else {
-      videoRef.current.pause();
-      setIsPlaying(false);
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    }
-  }, [video.audioUrl]); 
 
   useEffect(() => {
     if (videoRef.current) {
