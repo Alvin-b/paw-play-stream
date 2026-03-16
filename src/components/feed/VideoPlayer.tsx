@@ -20,7 +20,7 @@ const VideoPlayer = ({ video, isActive, shouldLoad = true }: VideoPlayerProps) =
   const audioRef = useRef<HTMLAudioElement>(null);
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
