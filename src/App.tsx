@@ -15,6 +15,7 @@ import Inbox from "./pages/Inbox.tsx";
 import Upload from "./pages/Upload.tsx";
 import UserProfile from "./pages/UserProfile.tsx";
 import LiveStream from "./pages/LiveStream.tsx";
+import Messages from "./pages/Messages.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
