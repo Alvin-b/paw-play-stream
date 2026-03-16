@@ -6,11 +6,13 @@ import FeedHeader from "./FeedHeader";
 
 const VideoFeed = () => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [feedType, setFeedType] = useState<"foryou" | "following">("foryou");
+  const [feedType, setFeedType] = useState<"foryou" | "following" | "explore" | "stem">("foryou");
   const containerRef = useRef<HTMLDivElement>(null);
-  const { videos: dbVideos, loading } = useVideos(feedType);
 
-  // Convert DB videos to the VideoData format, fallback to mock if no DB videos
+  // Map explore/stem to foryou for now (same query, different ranking later)
+  const queryType = feedType === "following" ? "following" : "foryou";
+  const { videos: dbVideos, loading } = useVideos(queryType);
+
   const videos: VideoData[] = dbVideos.length > 0
     ? dbVideos.map((v) => ({
         id: v.id,

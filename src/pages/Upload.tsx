@@ -2,20 +2,8 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Music, Hash, Upload as UploadIcon, Sparkles } from "lucide-react";
-
-const FILTERS = [
-  { name: "Normal", css: "" },
-  { name: "Vintage", css: "sepia(0.6) contrast(1.1) brightness(0.9)" },
-  { name: "B&W", css: "grayscale(1)" },
-  { name: "Warm", css: "sepia(0.3) saturate(1.4) brightness(1.1)" },
-  { name: "Cool", css: "hue-rotate(30deg) saturate(1.2)" },
-  { name: "Vivid", css: "saturate(1.8) contrast(1.2)" },
-  { name: "Fade", css: "opacity(0.8) brightness(1.15) contrast(0.85)" },
-  { name: "Drama", css: "contrast(1.5) brightness(0.85) saturate(1.3)" },
-  { name: "Retro", css: "sepia(0.4) hue-rotate(-15deg) saturate(1.5)" },
-  { name: "Glow", css: "brightness(1.2) contrast(1.1) saturate(1.3)" },
-];
+import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film } from "lucide-react";
+import { VIDEO_FILTERS, FILTER_CATEGORIES, VideoFilter } from "@/lib/filters";
 
 const Upload = () => {
   const { user } = useAuth();
@@ -31,14 +19,16 @@ const Upload = () => {
   const [error, setError] = useState("");
   const [selectedFilter, setSelectedFilter] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [activeCategory, setActiveCategory] = useState<string>("none");
+  const [mode, setMode] = useState<"upload" | "record">("upload");
 
   if (!user) {
     return (
       <div className="min-h-dvh bg-background flex items-center justify-center">
         <div className="text-center px-8">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Create a video</h2>
+          <h2 className="text-2xl font-extrabold text-foreground mb-2">Create a video</h2>
           <p className="text-muted-foreground text-sm mb-6">Log in to upload and share videos.</p>
-          <button onClick={() => navigate("/login")} className="px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm">
+          <button onClick={() => navigate("/login")} className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm">
             Log in
           </button>
         </div>
@@ -49,14 +39,8 @@ const Upload = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("video/")) {
-      setError("Please select a video file");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      setError("Video must be under 20MB");
-      return;
-    }
+    if (!file.type.startsWith("video/")) { setError("Please select a video file"); return; }
+    if (file.size > 50 * 1024 * 1024) { setError("Video must be under 50MB"); return; }
     setVideoFile(file);
     setVideoPreview(URL.createObjectURL(file));
     setError("");
@@ -67,25 +51,16 @@ const Upload = () => {
     setUploading(true);
     setError("");
     setUploadProgress(10);
-
     try {
       const ext = videoFile.name.split(".").pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
       setUploadProgress(30);
-
       const { error: uploadError } = await supabase.storage.from("videos").upload(path, videoFile);
       if (uploadError) throw uploadError;
       setUploadProgress(70);
-
       const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(path);
-
-      const hashtagArr = hashtags
-        .split(/[,#\s]+/)
-        .filter(Boolean)
-        .map((h) => h.toLowerCase());
-
+      const hashtagArr = hashtags.split(/[,#\s]+/).filter(Boolean).map((h) => h.toLowerCase());
       setUploadProgress(85);
-
       const { error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
         video_url: publicUrl,
@@ -94,24 +69,21 @@ const Upload = () => {
         hashtags: hashtagArr,
         is_public: isPublic,
       });
-
       if (insertError) throw insertError;
       setUploadProgress(100);
-      
-      // Update hashtags table
       for (const tag of hashtagArr) {
-        await supabase.from("hashtags").upsert(
-          { name: tag, video_count: 1 },
-          { onConflict: "name" }
-        ).select();
+        await supabase.from("hashtags").upsert({ name: tag, video_count: 1 }, { onConflict: "name" }).select();
       }
-
       navigate("/");
     } catch (err: any) {
       setError(err.message || "Upload failed");
     }
     setUploading(false);
   };
+
+  const filteredFilters = activeCategory === "none"
+    ? VIDEO_FILTERS
+    : VIDEO_FILTERS.filter((f) => f.category === activeCategory || f.name === "Normal");
 
   return (
     <div className="min-h-dvh bg-background">
@@ -120,11 +92,24 @@ const Upload = () => {
         <button onClick={() => navigate(-1)}>
           <X className="w-6 h-6 text-foreground" />
         </button>
-        <span className="text-foreground font-semibold">Post</span>
+        <div className="flex items-center gap-1 bg-muted rounded-full p-0.5">
+          <button
+            onClick={() => setMode("upload")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${mode === "upload" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+          >
+            <UploadIcon className="w-3 h-3 inline mr-1" />Upload
+          </button>
+          <button
+            onClick={() => setMode("record")}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${mode === "record" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+          >
+            <Camera className="w-3 h-3 inline mr-1" />Record
+          </button>
+        </div>
         <button
           onClick={handleUpload}
           disabled={!videoFile || uploading}
-          className="px-4 py-1.5 rounded bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+          className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
         >
           {uploading ? "Posting..." : "Post"}
         </button>
@@ -135,27 +120,36 @@ const Upload = () => {
         {!videoPreview ? (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full aspect-[9/16] max-h-[50vh] rounded-xl bg-muted border-2 border-dashed border-border flex flex-col items-center justify-center gap-3"
+            className="w-full aspect-[9/16] max-h-[50vh] rounded-2xl bg-card border-2 border-dashed border-border flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors"
           >
-            <UploadIcon className="w-12 h-12 text-muted-foreground" />
-            <span className="text-foreground font-semibold text-sm">Select video</span>
-            <span className="text-muted-foreground text-xs">MP4 or WebM, max 20MB</span>
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <UploadIcon className="w-8 h-8 text-primary" />
+            </div>
+            <div className="text-center">
+              <span className="text-foreground font-bold text-sm block">Select video</span>
+              <span className="text-muted-foreground text-xs">MP4 or WebM, max 50MB</span>
+            </div>
           </button>
         ) : (
-          <div className="relative w-full aspect-[9/16] max-h-[35vh] rounded-xl overflow-hidden bg-muted">
+          <div className="relative w-full aspect-[9/16] max-h-[35vh] rounded-2xl overflow-hidden bg-card">
             <video
               src={videoPreview}
               className="w-full h-full object-cover"
-              style={{ filter: FILTERS[selectedFilter].css }}
+              style={{ filter: VIDEO_FILTERS[selectedFilter].css }}
               controls
               muted
             />
             <button
               onClick={() => { setVideoFile(null); setVideoPreview(""); }}
-              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/70 flex items-center justify-center"
+              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-background/70 backdrop-blur-sm flex items-center justify-center"
             >
               <X className="w-4 h-4 text-foreground" />
             </button>
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-background/50 backdrop-blur-sm">
+              <span className="text-foreground text-[10px] font-semibold">
+                {VIDEO_FILTERS[selectedFilter].name}
+              </span>
+            </div>
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
@@ -165,43 +159,68 @@ const Upload = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-foreground text-sm font-semibold">Filters</span>
+              <span className="text-foreground text-sm font-bold">Filters</span>
+              <span className="text-muted-foreground text-xs">({VIDEO_FILTERS.length} filters)</span>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {FILTERS.map((filter, i) => (
+
+            {/* Category tabs */}
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
+              {FILTER_CATEGORIES.map((cat) => (
                 <button
-                  key={filter.name}
-                  onClick={() => setSelectedFilter(i)}
-                  className={`shrink-0 flex flex-col items-center gap-1`}
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                    activeCategory === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
                 >
-                  <div
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                      selectedFilter === i ? "border-primary" : "border-transparent"
-                    }`}
-                  >
-                    <video
-                      src={videoPreview}
-                      className="w-full h-full object-cover"
-                      style={{ filter: filter.css }}
-                      muted
-                    />
-                  </div>
-                  <span className={`text-[10px] ${selectedFilter === i ? "text-primary" : "text-muted-foreground"}`}>
-                    {filter.name}
-                  </span>
+                  {cat.label}
                 </button>
               ))}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {filteredFilters.map((filter) => {
+                const globalIndex = VIDEO_FILTERS.indexOf(filter);
+                return (
+                  <button
+                    key={filter.name}
+                    onClick={() => setSelectedFilter(globalIndex)}
+                    className="shrink-0 flex flex-col items-center gap-1"
+                  >
+                    <div
+                      className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
+                        selectedFilter === globalIndex ? "border-primary scale-105" : "border-transparent"
+                      }`}
+                    >
+                      <video
+                        src={videoPreview}
+                        className="w-full h-full object-cover"
+                        style={{ filter: filter.css }}
+                        muted
+                      />
+                    </div>
+                    <span className={`text-[9px] font-medium ${selectedFilter === globalIndex ? "text-primary" : "text-muted-foreground"}`}>
+                      {filter.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Upload Progress */}
         {uploading && (
-          <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${uploadProgress}%` }}
-            />
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Uploading...</span>
+              <span className="text-primary font-bold">{uploadProgress}%</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{ width: `${uploadProgress}%` }} />
+            </div>
           </div>
         )}
 
@@ -212,11 +231,11 @@ const Upload = () => {
           onChange={(e) => setDescription(e.target.value)}
           maxLength={300}
           rows={3}
-          className="w-full px-3 py-2 rounded-lg bg-muted text-foreground text-sm placeholder:text-muted-foreground outline-none resize-none focus:ring-2 focus:ring-primary"
+          className="w-full px-3 py-2.5 rounded-xl bg-muted text-foreground text-sm placeholder:text-muted-foreground outline-none resize-none focus:ring-2 focus:ring-primary"
         />
 
         {/* Hashtags */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted">
           <Hash className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             placeholder="Add hashtags (comma separated)"
@@ -227,7 +246,7 @@ const Upload = () => {
         </div>
 
         {/* Music */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted">
           <Music className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             placeholder="Add music name"
@@ -238,8 +257,8 @@ const Upload = () => {
         </div>
 
         {/* Visibility toggle */}
-        <div className="flex items-center justify-between px-3 py-3 rounded-lg bg-muted">
-          <span className="text-foreground text-sm">Public video</span>
+        <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-muted">
+          <span className="text-foreground text-sm font-medium">Public video</span>
           <button
             onClick={() => setIsPublic(!isPublic)}
             className={`w-11 h-6 rounded-full transition-colors ${isPublic ? "bg-primary" : "bg-border"}`}

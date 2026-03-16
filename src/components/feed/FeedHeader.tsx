@@ -1,45 +1,62 @@
-import { Radio } from "lucide-react";
+import { Radio, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface FeedHeaderProps {
-  activeTab: "following" | "foryou";
-  onTabChange: (tab: "following" | "foryou") => void;
+  activeTab: "following" | "foryou" | "explore" | "stem";
+  onTabChange: (tab: "following" | "foryou" | "explore" | "stem") => void;
 }
 
 const FeedHeader = ({ activeTab, onTabChange }: FeedHeaderProps) => {
   const navigate = useNavigate();
 
-  return (
-    <div className="absolute top-0 left-0 right-0 z-30 flex justify-between items-center pt-3 pb-2 px-4 pointer-events-none">
-      <button
-        onClick={() => navigate("/live")}
-        className="pointer-events-auto flex items-center gap-1"
-      >
-        <Radio className="w-5 h-5 text-primary" />
-        <span className="text-foreground text-xs font-semibold">LIVE</span>
-      </button>
+  const tabs = [
+    { id: "stem" as const, label: "STEM" },
+    { id: "explore" as const, label: "Explore" },
+    { id: "following" as const, label: "Following" },
+    { id: "foryou" as const, label: "For You" },
+  ];
 
-      <div className="flex gap-4 items-center pointer-events-auto">
+  return (
+    <div className="absolute top-0 left-0 right-0 z-30 pt-2 pb-1 px-4 pointer-events-none">
+      <div className="flex items-center justify-between">
         <button
-          onClick={() => onTabChange("following")}
-          className={`text-base font-semibold transition-opacity ${
-            activeTab === "following" ? "text-foreground opacity-100" : "text-foreground opacity-50"
-          }`}
+          onClick={() => navigate("/live")}
+          className="pointer-events-auto flex items-center gap-1 opacity-80 hover:opacity-100 transition-opacity"
         >
-          Following
+          <Radio className="w-4 h-4 text-primary" />
+          <span className="text-foreground text-[10px] font-bold tracking-wide">LIVE</span>
         </button>
-        <span className="text-foreground/30 text-lg">|</span>
+
+        <div className="flex items-center gap-1 pointer-events-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className="relative px-2.5 py-1.5"
+            >
+              <span
+                className={`text-sm font-semibold transition-all ${
+                  activeTab === tab.id
+                    ? "text-foreground"
+                    : "text-foreground/50"
+                }`}
+              >
+                {tab.label}
+              </span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-foreground rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+
         <button
-          onClick={() => onTabChange("foryou")}
-          className={`text-base font-semibold transition-opacity ${
-            activeTab === "foryou" ? "text-foreground opacity-100" : "text-foreground opacity-50"
-          }`}
+          onClick={() => navigate("/discover")}
+          className="pointer-events-auto opacity-80 hover:opacity-100 transition-opacity"
         >
-          For You
+          <Search className="w-5 h-5 text-foreground" />
         </button>
       </div>
-
-      <div className="w-10" /> {/* Spacer for centering */}
     </div>
   );
 };
