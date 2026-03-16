@@ -2,9 +2,10 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film, TrendingUp, Wand2, MessageSquare, Globe, Lock } from "lucide-react";
+import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film, TrendingUp, Wand2, MessageSquare, Globe, Lock, Plus } from "lucide-react";
 import { VIDEO_FILTERS, FILTER_CATEGORIES, VideoFilter } from "@/lib/filters";
 import { AIViralPrediction } from "@/components/feed/AIViralPrediction";
+import { AIGenerator } from "@/components/feed/AIGenerator";
 import { Button } from "@/components/ui/button";
 
 const Upload = () => {
@@ -28,6 +29,7 @@ const Upload = () => {
   const [mode, setMode] = useState<"upload" | "record">("upload");
   const [showAIPanel, setShowAIPanel] = useState<"viral" | "hashtags" | null>(null);
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
 
   if (!user) {
     return (
@@ -416,6 +418,17 @@ const Upload = () => {
           </button>
         </div>
 
+        {/* AI Generator Button */}
+        <Button
+          variant="outline"
+          className="w-full py-6 border-dashed border-2"
+          onClick={() => setShowAIGenerator(true)}
+        >
+          <Sparkles className="w-5 h-5 mr-2" />
+          <Plus className="w-4 h-4 mr-2" />
+          AI Generate (Video, Music, Translate)
+        </Button>
+
         {/* AI Viral Prediction Panel */}
         {showAIPanel === "viral" && (
           <AIViralPrediction
@@ -442,6 +455,9 @@ const Upload = () => {
 
         {error && <p className="text-destructive text-sm">{error}</p>}
       </div>
+
+      {/* AI Generator Modal */}
+      {showAIGenerator && <AIGenerator onClose={() => setShowAIGenerator(false)} />}
     </div>
   );
 };
