@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Search, X, TrendingUp, Flame, Music, Users, Play, ArrowUp } from "lucide-react";
+import { Search, X, TrendingUp, Flame, Music, Users, Play, ArrowUp, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/navigation/BottomNav";
+import { AITrends } from "@/components/feed/AITrends";
 
 interface HashtagData {
   name: string;
@@ -44,11 +45,12 @@ const formatCount = (n: number) => {
 
 const Discover = () => {
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"forYou" | "trending" | "sounds">("forYou");
+  const [activeTab, setActiveTab] = useState<"forYou" | "trending" | "sounds" | "ai">("forYou");
   const [hashtags, setHashtags] = useState<HashtagData[]>([]);
   const [sounds, setSounds] = useState<SoundData[]>([]);
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   const [searchResults, setSearchResults] = useState<ProfileData[]>([]);
+  const [showAITrends, setShowAITrends] = useState(false);
   const [categories, setCategories] = useState<CategoryData[]>([
     { id: "1", name: "Dance", icon: "💃", video_count: 125000 },
     { id: "2", name: "Comedy", icon: "😂", video_count: 98000 },
@@ -74,7 +76,7 @@ const Discover = () => {
       // Add simulated trend direction
       const hashtagsWithTrend = (hashtagData || []).map((tag, i) => ({
         ...tag,
-        trend_direction: i < 5 ? "up" : i < 10 ? "stable" as const : "down" as const,
+trend_direction: (i < 5 ? "up" : i < 10 ? "stable" : "down") as "up" | "down" | "stable",
       }));
       setHashtags(hashtagsWithTrend);
 
@@ -181,6 +183,22 @@ const Discover = () => {
             <Music className="w-3 h-3" />
             Sounds
           </button>
+          <button
+            onClick={() => { setActiveTab("ai"); setShowAITrends(true); }}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap flex items-center gap-1 ${
+              activeTab === "ai" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            AI Trends
+          </button>
+        </div>
+      )}
+
+      {/* AI Trends Tab */}
+      {activeTab === "ai" && showAITrends && (
+        <div className="px-4 mt-2 pb-20">
+          <AITrends />
         </div>
       )}
 

@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { VideoWithProfile } from "../useVideos";
+import { AuthProvider } from "../../contexts/AuthContext";
+import { supabase } from "../../integrations/supabase/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useVideos, useToggleLike, useToggleBookmark } from "./useVideos";

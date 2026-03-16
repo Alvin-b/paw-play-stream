@@ -78,7 +78,7 @@ export async function seed() {
 }
 
 // Run if direct (Node/Deno)
-if (typeof require !== 'undefined' || typeof import.meta !== 'undefined' && import.meta.main) {
+if (import.meta.main) {
   seed();
 }
 

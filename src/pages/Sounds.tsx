@@ -18,8 +18,12 @@ const Sounds = () => {
 
   const fetchSounds = async (q: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .rpc('get_popular_sounds', { query: q || null });
+const { data } = await supabase
+      .from("videos")
+      .select("music_name, count(id) as video_count")
+      .not("music_name", "is", null)
+      .order("video_count", { ascending: false })
+      .limit(20);
     setSounds(data || []);
     setLoading(false);
   };

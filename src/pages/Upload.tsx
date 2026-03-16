@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film } from "lucide-react";
+import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film, TrendingUp, Wand2, MessageSquare, Globe, Lock } from "lucide-react";
 import { VIDEO_FILTERS, FILTER_CATEGORIES, VideoFilter } from "@/lib/filters";
+import { AIViralPrediction } from "@/components/feed/AIViralPrediction";
+import { Button } from "@/components/ui/button";
 
 const Upload = () => {
   const { user } = useAuth();
@@ -24,6 +26,8 @@ const Upload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeCategory, setActiveCategory] = useState<string>("none");
   const [mode, setMode] = useState<"upload" | "record">("upload");
+  const [showAIPanel, setShowAIPanel] = useState<"viral" | "hashtags" | null>(null);
+  const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
 
   if (!user) {
     return (
@@ -296,14 +300,78 @@ const Upload = () => {
         />
 
         {/* Hashtags */}
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted">
-          <Hash className="w-4 h-4 text-muted-foreground shrink-0" />
-          <input
-            placeholder="Add hashtags (comma separated)"
-            value={hashtags}
-            onChange={(e) => setHashtags(e.target.value)}
-            className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
-          />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted flex-1">
+              <Hash className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                placeholder="Add hashtags (comma separated)"
+                value={hashtags}
+                onChange={(e) => setHashtags(e.target.value)}
+                className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <button
+              onClick={() => setShowAIPanel(showAIPanel === "hashtags" ? null : "hashtags")}
+              className={`ml-2 p-2.5 rounded-xl ${showAIPanel === "hashtags" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            >
+              <Wand2 className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* AI Hashtag Suggestions Panel */}
+          {showAIPanel === "hashtags" && (
+            <div className="bg-card border rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="font-semibold text-sm">AI Hashtag Suggestions</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Based on your video content, here are trending hashtags that could boost your visibility:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {suggestedHashtags.length > 0 ? (
+                  suggestedHashtags.map((tag, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const currentTags = hashtags ? hashtags.split(",").map(t => t.trim()).filter(Boolean) : [];
+                        if (!currentTags.includes(tag)) {
+                          setHashtags(currentTags.length > 0 ? `${hashtags}, ${tag}` : tag);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-primary/10 text-primary text-sm rounded-full hover:bg-primary/20 transition-colors"
+                    >
+                      #{tag}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">Add a description or hashtags to get AI suggestions</p>
+                )}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={async () => {
+                  // Call the content categorize function
+                  try {
+                    const { data } = await supabase.functions.invoke("ai-content-categorize", {
+                      body: { description, hashtags: hashtags.split(/[,#\s]+/).filter(Boolean) }
+                    });
+                    if (data?.suggested_hashtags) {
+                      setSuggestedHashtags(data.suggested_hashtags);
+                    }
+                  } catch (err) {
+                    console.error("Failed to get suggestions:", err);
+                  }
+                }}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Suggestions
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Music Selection */}
@@ -330,9 +398,40 @@ const Upload = () => {
           </button>
         </div>
 
+        {/* AI Viral Prediction Toggle */}
+        <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-muted">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <span className="text-foreground text-sm font-medium">AI Viral Prediction</span>
+          </div>
+          <button
+            onClick={() => setShowAIPanel(showAIPanel === "viral" ? null : "viral")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showAIPanel === "viral" 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary text-secondary-foreground"
+            }`}
+          >
+            {showAIPanel === "viral" ? "Hide" : "Analyze"}
+          </button>
+        </div>
+
+        {/* AI Viral Prediction Panel */}
+        {showAIPanel === "viral" && (
+          <AIViralPrediction
+            videoId={Date.now().toString()}
+            description={description}
+            hashtags={hashtags.split(/[,#\s]+/).filter(Boolean)}
+            onClose={() => setShowAIPanel(null)}
+          />
+        )}
+
         {/* Visibility toggle */}
         <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-muted">
-          <span className="text-foreground text-sm font-medium">Public video</span>
+          <div className="flex items-center gap-2">
+            {isPublic ? <Globe className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground" />}
+            <span className="text-foreground text-sm font-medium">{isPublic ? "Public" : "Private"}</span>
+          </div>
           <button
             onClick={() => setIsPublic(!isPublic)}
             className={`w-11 h-6 rounded-full transition-colors ${isPublic ? "bg-primary" : "bg-border"}`}
