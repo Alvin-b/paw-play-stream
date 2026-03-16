@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -9,17 +11,21 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setShowResend(false);
     setLoading(true);
     const { error } = await signIn(email, password);
     if (error) {
       if (error.message.includes("Email not confirmed")) {
-        setError("Please check your email and confirm your account before logging in.");
+        setError("Please verify your email before logging in.");
+        setShowResend(true);
       } else {
         setError(error.message);
       }
@@ -27,6 +33,22 @@ const Login = () => {
       navigate("/");
     }
     setLoading(false);
+  };
+
+  const handleResend = async () => {
+    if (!email) { toast.error("Enter your email first"); return; }
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Verification email resent! Check your inbox.");
+    }
+    setResending(false);
   };
 
   return (
@@ -38,16 +60,14 @@ const Login = () => {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-12 px-4 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground border-none outline-none focus:ring-2 focus:ring-primary text-sm"
-              required
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full h-12 px-4 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground border-none outline-none focus:ring-2 focus:ring-primary text-sm"
+            required
+          />
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -67,12 +87,17 @@ const Login = () => {
           </div>
 
           {error && (
-            <div className="text-sm">
-              <p className="text-destructive">{error}</p>
-              {error.includes("confirm") && (
-                <Link to="/signup" className="text-primary text-xs mt-1 block">
-                  Resend confirmation email →
-                </Link>
+            <div className="space-y-2">
+              <p className="text-destructive text-sm">{error}</p>
+              {showResend && (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="text-primary text-xs font-semibold disabled:opacity-50"
+                >
+                  {resending ? "Resending..." : "Resend verification email →"}
+                </button>
               )}
             </div>
           )}
