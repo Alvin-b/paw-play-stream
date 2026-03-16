@@ -88,6 +88,35 @@ export type Database = {
           },
         ]
       }
+      comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
@@ -287,6 +316,7 @@ export type Database = {
       }
       videos: {
         Row: {
+          audio_url: string | null
           bookmarks_count: number | null
           comments_count: number | null
           created_at: string
@@ -304,6 +334,7 @@ export type Database = {
           views_count: number | null
         }
         Insert: {
+          audio_url?: string | null
           bookmarks_count?: number | null
           comments_count?: number | null
           created_at?: string
@@ -321,6 +352,7 @@ export type Database = {
           views_count?: number | null
         }
         Update: {
+          audio_url?: string | null
           bookmarks_count?: number | null
           comments_count?: number | null
           created_at?: string

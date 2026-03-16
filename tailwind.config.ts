@@ -7,14 +7,17 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "0",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["-apple-system", "BlinkMacSystemFont", "Inter", "system-ui", "sans-serif"],
+      },
+      fontWeight: {
+        'bold': '700',
       },
       colors: {
         border: "hsl(var(--border))",
@@ -84,5 +87,8 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate")], 
+    screens: {
+      'iphone': '390px',
+    },
 } satisfies Config;

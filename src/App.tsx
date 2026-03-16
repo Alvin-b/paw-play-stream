@@ -16,6 +16,7 @@ import Upload from "./pages/Upload.tsx";
 import UserProfile from "./pages/UserProfile.tsx";
 import LiveStream from "./pages/LiveStream.tsx";
 import Messages from "./pages/Messages.tsx";
+import Sounds from "./pages/Sounds.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -27,22 +28,23 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/discover" element={<Discover />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/user/:username" element={<UserProfile />} />
-            <Route path="/live" element={<LiveStream />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/messages/:recipientId" element={<Messages />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+  <Routes>
+    <Route path="/" element={<Index />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/signup" element={<Signup />} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/discover" element={<Discover />} />
+    <Route path="/sounds" element={<Sounds />} />
+    <Route path="/profile" element={<Profile />} />
+    <Route path="/inbox" element={<Inbox />} />
+    <Route path="/upload" element={<Upload />} />
+    <Route path="/user/:username" element={<UserProfile />} />
+    <Route path="/live" element={<LiveStream />} />
+    <Route path="/messages" element={<Messages />} />
+    <Route path="/messages/:recipientId" element={<Messages />} />
+    <Route path="*" element={<NotFound />} />
+  </Routes>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

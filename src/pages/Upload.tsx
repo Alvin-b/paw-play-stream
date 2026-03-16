@@ -9,8 +9,11 @@ const Upload = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState("");
+  const [audioPreview, setAudioPreview] = useState("");
   const [description, setDescription] = useState("");
   const [musicName, setMusicName] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -46,6 +49,16 @@ const Upload = () => {
     setError("");
   };
 
+  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) { setError("Please select an audio file"); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("Audio must be under 10MB"); return; }
+    setAudioFile(file);
+    setAudioPreview(URL.createObjectURL(file));
+    setError("");
+  };
+
   const handleUpload = async () => {
     if (!videoFile || !user) return;
     setUploading(true);
@@ -59,11 +72,23 @@ const Upload = () => {
       if (uploadError) throw uploadError;
       setUploadProgress(70);
       const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(path);
+
+      let audioUrl = "";
+      if (audioFile) {
+        const audioExt = audioFile.name.split(".").pop();
+        const audioPath = `${user.id}/${Date.now()}_audio.${audioExt}`;
+        const { error: audioUploadError } = await supabase.storage.from("videos").upload(audioPath, audioFile);
+        if (audioUploadError) throw audioUploadError;
+        const { data: { publicUrl: audioPublicUrl } } = supabase.storage.from("videos").getPublicUrl(audioPath);
+        audioUrl = audioPublicUrl;
+      }
+
       const hashtagArr = hashtags.split(/[,#\s]+/).filter(Boolean).map((h) => h.toLowerCase());
       setUploadProgress(85);
       const { error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
         video_url: publicUrl,
+        audio_url: audioUrl || null,
         description,
         music_name: musicName || "original sound",
         hashtags: hashtagArr,
@@ -153,6 +178,42 @@ const Upload = () => {
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
+
+        {/* Audio selector */}
+        {videoPreview && !audioPreview && (
+          <button
+            onClick={() => audioInputRef.current?.click()}
+            className="w-full h-20 rounded-xl bg-card border-2 border-dashed border-border flex items-center justify-center gap-3 hover:border-primary/50 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Music className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-center">
+              <span className="text-foreground font-bold text-sm block">Add music (optional)</span>
+              <span className="text-muted-foreground text-xs">MP3, WAV, max 10MB</span>
+            </div>
+          </button>
+        )}
+        {audioPreview && (
+          <div className="relative w-full h-20 rounded-xl bg-card border border-border flex items-center gap-3 p-3">
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Music className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-foreground font-medium text-sm block truncate">
+                {audioFile?.name}
+              </span>
+              <audio src={audioPreview} controls className="w-full mt-1" />
+            </div>
+            <button
+              onClick={() => { setAudioFile(null); setAudioPreview(""); }}
+              className="w-8 h-8 rounded-full bg-background/70 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+            >
+              <X className="w-4 h-4 text-foreground" />
+            </button>
+          </div>
+        )}
+        <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioSelect} className="hidden" />
 
         {/* Filters */}
         {videoPreview && (
@@ -245,15 +306,28 @@ const Upload = () => {
           />
         </div>
 
-        {/* Music */}
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted">
-          <Music className="w-4 h-4 text-muted-foreground shrink-0" />
-          <input
-            placeholder="Add music name"
-            value={musicName}
-            onChange={(e) => setMusicName(e.target.value)}
-            className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
-          />
+        {/* Music Selection */}
+        <div className="p-3 rounded-xl bg-muted">
+          <div className="flex items-center gap-3 mb-3">
+            <Music className="w-5 h-5 text-primary" />
+            <span className="font-bold text-sm">Sound</span>
+          </div>
+          <div className="relative">
+            <input
+              placeholder="Search sounds or original audio"
+              value={musicName}
+              onChange={(e) => setMusicName(e.target.value)}
+              className="w-full p-3 bg-background rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
+            />
+            {musicName && (
+              <button onClick={() => setMusicName('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          <button className="w-full mt-3 p-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm">
+            Use this sound
+          </button>
         </div>
 
         {/* Visibility toggle */}

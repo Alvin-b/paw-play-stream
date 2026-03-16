@@ -1,5 +1,6 @@
 export interface VideoData {
   id: string;
+  userId?: string;
   user: {
     username: string;
     displayName: string;
@@ -13,14 +14,17 @@ export interface VideoData {
   shares: number;
   bookmarks: number;
   videoUrl: string;
+  audioUrl?: string;
   isLiked: boolean;
   isBookmarked: boolean;
+  hasViewed?: boolean;
 }
 
 // Using free stock video URLs
 export const mockVideos: VideoData[] = [
   {
     id: "1",
+    userId: "user-1",
     user: {
       username: "traveler_mike",
       displayName: "Mike Adventures",
@@ -34,11 +38,13 @@ export const mockVideos: VideoData[] = [
     shares: 1230,
     bookmarks: 8920,
     videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    audioUrl: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Sample audio
     isLiked: false,
     isBookmarked: false,
   },
   {
     id: "2",
+    userId: "user-2",
     user: {
       username: "chef_anna",
       displayName: "Anna Cooks",
@@ -57,6 +63,7 @@ export const mockVideos: VideoData[] = [
   },
   {
     id: "3",
+    userId: "user-3",
     user: {
       username: "danceking99",
       displayName: "Dance King",
@@ -75,6 +82,7 @@ export const mockVideos: VideoData[] = [
   },
   {
     id: "4",
+    userId: "user-4",
     user: {
       username: "naturelover",
       displayName: "Nature Daily",
@@ -93,6 +101,7 @@ export const mockVideos: VideoData[] = [
   },
   {
     id: "5",
+    userId: "user-5",
     user: {
       username: "fitnessjay",
       displayName: "Jay Fitness",
