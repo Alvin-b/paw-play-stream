@@ -39,6 +39,8 @@ const App = () => (
             <Route path="/upload" element={<Upload />} />
             <Route path="/user/:username" element={<UserProfile />} />
             <Route path="/live" element={<LiveStream />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages/:recipientId" element={<Messages />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

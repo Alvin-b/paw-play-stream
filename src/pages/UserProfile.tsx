@@ -139,7 +139,10 @@ const UserProfile = () => {
             >
               {isFollowing ? "Following" : "Follow"}
             </button>
-            <button className="px-4 py-2 rounded-lg bg-muted text-foreground text-sm font-semibold">
+            <button
+              onClick={() => navigate(`/messages/${profile.user_id}`)}
+              className="px-4 py-2 rounded-lg bg-muted text-foreground text-sm font-semibold"
+            >
               Message
             </button>
           </div>
