@@ -62,7 +62,7 @@ export default function VideoOverlay({ video }: VideoOverlayProps) {
                 <span className="text-foreground font-semibold text-base">@{video.user.username}</span>
                 <span className="text-foreground/70 text-sm">{video.user.displayName}</span>
               </div>
-              <div className="text-foreground/70 text-sm">{video.user.verified ? "Verified" : ""}</div>
+              <div className="text-foreground/70 text-sm">{(video.user as any).verified ? "Verified" : ""}</div>
             </div>
           </button>
 
