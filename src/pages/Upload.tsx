@@ -2,21 +2,21 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, Film, TrendingUp, Wand2, MessageSquare, Globe, Lock, Plus } from "lucide-react";
-import { VIDEO_FILTERS, FILTER_CATEGORIES, VideoFilter } from "@/lib/filters";
+import { X, Music, Hash, Upload as UploadIcon, Sparkles, Camera, TrendingUp, Wand2, Globe, Lock, Plus } from "lucide-react";
+import { VIDEO_FILTERS, FILTER_CATEGORIES } from "@/lib/filters";
 import { AIViralPrediction } from "@/components/feed/AIViralPrediction";
 import { AIGenerator } from "@/components/feed/AIGenerator";
 import { Button } from "@/components/ui/button";
+import SoundPicker from "@/components/upload/SoundPicker";
+import CameraRecorder from "@/components/upload/CameraRecorder";
+import { AppSound } from "@/data/sounds";
 
 const Upload = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState("");
-  const [audioPreview, setAudioPreview] = useState("");
   const [description, setDescription] = useState("");
   const [musicName, setMusicName] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -30,6 +30,9 @@ const Upload = () => {
   const [showAIPanel, setShowAIPanel] = useState<"viral" | "hashtags" | null>(null);
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [selectedSound, setSelectedSound] = useState<AppSound | null>(null);
 
   if (!user) {
     return (
@@ -55,14 +58,18 @@ const Upload = () => {
     setError("");
   };
 
-  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("audio/")) { setError("Please select an audio file"); return; }
-    if (file.size > 10 * 1024 * 1024) { setError("Audio must be under 10MB"); return; }
-    setAudioFile(file);
-    setAudioPreview(URL.createObjectURL(file));
-    setError("");
+  const handleRecordComplete = (blob: Blob) => {
+    const file = new File([blob], `recording_${Date.now()}.webm`, { type: "video/webm" });
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(blob));
+    setShowCamera(false);
+    setMode("upload");
+  };
+
+  const handleSoundSelect = (sound: AppSound) => {
+    setSelectedSound(sound);
+    setMusicName(sound.name + " - " + sound.artist);
+    setShowSoundPicker(false);
   };
 
   const handleUpload = async () => {
@@ -79,22 +86,11 @@ const Upload = () => {
       setUploadProgress(70);
       const { data: { publicUrl } } = supabase.storage.from("videos").getPublicUrl(path);
 
-      let audioUrl = "";
-      if (audioFile) {
-        const audioExt = audioFile.name.split(".").pop();
-        const audioPath = `${user.id}/${Date.now()}_audio.${audioExt}`;
-        const { error: audioUploadError } = await supabase.storage.from("videos").upload(audioPath, audioFile);
-        if (audioUploadError) throw audioUploadError;
-        const { data: { publicUrl: audioPublicUrl } } = supabase.storage.from("videos").getPublicUrl(audioPath);
-        audioUrl = audioPublicUrl;
-      }
-
       const hashtagArr = hashtags.split(/[,#\s]+/).filter(Boolean).map((h) => h.toLowerCase());
       setUploadProgress(85);
       const { error: insertError } = await supabase.from("videos").insert({
         user_id: user.id,
         video_url: publicUrl,
-        audio_url: audioUrl || null,
         description,
         music_name: musicName || "original sound",
         hashtags: hashtagArr,
@@ -118,6 +114,24 @@ const Upload = () => {
 
   return (
     <div className="min-h-dvh bg-background">
+      {/* Camera Recorder */}
+      {showCamera && (
+        <CameraRecorder
+          onRecordComplete={handleRecordComplete}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
+
+      {/* Sound Picker */}
+      {showSoundPicker && (
+        <SoundPicker
+          onSelect={handleSoundSelect}
+          onClose={() => setShowSoundPicker(false)}
+          description={description}
+          hashtags={hashtags.split(/[,#\s]+/).filter(Boolean)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <button onClick={() => navigate(-1)}>
@@ -131,7 +145,7 @@ const Upload = () => {
             <UploadIcon className="w-3 h-3 inline mr-1" />Upload
           </button>
           <button
-            onClick={() => setMode("record")}
+            onClick={() => { setMode("record"); setShowCamera(true); }}
             className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${mode === "record" ? "bg-foreground text-background" : "text-muted-foreground"}`}
           >
             <Camera className="w-3 h-3 inline mr-1" />Record
@@ -185,42 +199,6 @@ const Upload = () => {
         )}
         <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
 
-        {/* Audio selector */}
-        {videoPreview && !audioPreview && (
-          <button
-            onClick={() => audioInputRef.current?.click()}
-            className="w-full h-20 rounded-xl bg-card border-2 border-dashed border-border flex items-center justify-center gap-3 hover:border-primary/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Music className="w-4 h-4 text-primary" />
-            </div>
-            <div className="text-center">
-              <span className="text-foreground font-bold text-sm block">Add music (optional)</span>
-              <span className="text-muted-foreground text-xs">MP3, WAV, max 10MB</span>
-            </div>
-          </button>
-        )}
-        {audioPreview && (
-          <div className="relative w-full h-20 rounded-xl bg-card border border-border flex items-center gap-3 p-3">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Music className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-foreground font-medium text-sm block truncate">
-                {audioFile?.name}
-              </span>
-              <audio src={audioPreview} controls className="w-full mt-1" />
-            </div>
-            <button
-              onClick={() => { setAudioFile(null); setAudioPreview(""); }}
-              className="w-8 h-8 rounded-full bg-background/70 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
-            >
-              <X className="w-4 h-4 text-foreground" />
-            </button>
-          </div>
-        )}
-        <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioSelect} className="hidden" />
-
         {/* Filters */}
         {videoPreview && (
           <div>
@@ -229,24 +207,19 @@ const Upload = () => {
               <span className="text-foreground text-sm font-bold">Filters</span>
               <span className="text-muted-foreground text-xs">({VIDEO_FILTERS.length} filters)</span>
             </div>
-
-            {/* Category tabs */}
             <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
               {FILTER_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                    activeCategory === cat.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+                    activeCategory === cat.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {cat.label}
                 </button>
               ))}
             </div>
-
             <div className="flex gap-2 overflow-x-auto pb-2">
               {filteredFilters.map((filter) => {
                 const globalIndex = VIDEO_FILTERS.indexOf(filter);
@@ -320,8 +293,6 @@ const Upload = () => {
               <Wand2 className="w-5 h-5" />
             </button>
           </div>
-          
-          {/* AI Hashtag Suggestions Panel */}
           {showAIPanel === "hashtags" && (
             <div className="bg-card border rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -348,15 +319,14 @@ const Upload = () => {
                     </button>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Add a description or hashtags to get AI suggestions</p>
+                  <p className="text-sm text-muted-foreground">Add a description to get AI suggestions</p>
                 )}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="w-full"
                 onClick={async () => {
-                  // Call the content categorize function
                   try {
                     const { data } = await supabase.functions.invoke("ai-content-categorize", {
                       body: { description, hashtags: hashtags.split(/[,#\s]+/).filter(Boolean) }
@@ -376,29 +346,24 @@ const Upload = () => {
           )}
         </div>
 
-        {/* Music Selection */}
-        <div className="p-3 rounded-xl bg-muted">
-          <div className="flex items-center gap-3 mb-3">
+        {/* Sound Selection */}
+        <button
+          onClick={() => setShowSoundPicker(true)}
+          className="w-full p-3 rounded-xl bg-muted flex items-center gap-3"
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Music className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm">Sound</span>
           </div>
-          <div className="relative">
-            <input
-              placeholder="Search sounds or original audio"
-              value={musicName}
-              onChange={(e) => setMusicName(e.target.value)}
-              className="w-full p-3 bg-background rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary"
-            />
-            {musicName && (
-              <button onClick={() => setMusicName('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
-            )}
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-foreground">
+              {selectedSound ? selectedSound.name : "Add Sound"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {selectedSound ? `${selectedSound.artist} · ${selectedSound.duration}s` : "Browse from 25+ sounds"}
+            </p>
           </div>
-          <button className="w-full mt-3 p-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm">
-            Use this sound
-          </button>
-        </div>
+          <span className="text-muted-foreground text-xs">›</span>
+        </button>
 
         {/* AI Viral Prediction Toggle */}
         <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-muted">
@@ -409,8 +374,8 @@ const Upload = () => {
           <button
             onClick={() => setShowAIPanel(showAIPanel === "viral" ? null : "viral")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              showAIPanel === "viral" 
-                ? "bg-primary text-primary-foreground" 
+              showAIPanel === "viral"
+                ? "bg-primary text-primary-foreground"
                 : "bg-secondary text-secondary-foreground"
             }`}
           >
