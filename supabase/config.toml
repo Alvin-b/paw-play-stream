@@ -2,3 +2,36 @@ project_id = "bnathmrkpmiwfyezrwaz"
 
 [functions.recommend-videos]
 verify_jwt = false
+
+[functions.ai-auto-caption]
+verify_jwt = false
+
+[functions.ai-content-categorize]
+verify_jwt = false
+
+[functions.ai-content-moderation]
+verify_jwt = false
+
+[functions.ai-content-search]
+verify_jwt = false
+
+[functions.ai-live-stream]
+verify_jwt = false
+
+[functions.ai-smart-reply]
+verify_jwt = false
+
+[functions.ai-translation]
+verify_jwt = false
+
+[functions.ai-trend-detection]
+verify_jwt = false
+
+[functions.ai-video-generation]
+verify_jwt = false
+
+[functions.ai-viral-prediction]
+verify_jwt = false
+
+[functions.ai-voice-music]
+verify_jwt = false
