@@ -10,6 +10,7 @@ interface Comment {
   created_at: string;
   likes_count: number;
   parent_id: string | null;
+  isLiked: boolean;
   user: {
     username: string;
     avatar_url: string | null;

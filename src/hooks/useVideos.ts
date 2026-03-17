@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -76,7 +76,6 @@ export const useVideos = (feedType: "foryou" | "following" = "foryou") => {
       return;
     }
 
-    // Get profiles for all video authors
     const userIds = [...new Set(videosData.map((v) => v.user_id))];
     const { data: profiles } = await supabase
       .from("profiles")
@@ -90,24 +89,23 @@ export const useVideos = (feedType: "foryou" | "following" = "foryou") => {
       avatar_url: string | null;
       verified: boolean | null;
     };
-    
-    const profileMap = new Map<ProfileData["user_id"], ProfileData>(
+
+    const profileMap = new Map<string, ProfileData>(
       profiles?.map((p) => [p.user_id, p as ProfileData]) || []
     );
 
-    // Get user's likes and bookmarks
     let likedIds = new Set<string>();
     let bookmarkedIds = new Set<string>();
     let followingIds = new Set<string>();
 
     if (user) {
       const videoIds = videosData.map((v) => v.id);
-      const userIds = videosData.map((v) => v.user_id);
+      const authorIds = videosData.map((v) => v.user_id);
 
       const [{ data: likes }, { data: bookmarks }, { data: follows }] = await Promise.all([
         supabase.from("likes").select("video_id").eq("user_id", user.id).in("video_id", videoIds),
         supabase.from("bookmarks").select("video_id").eq("user_id", user.id).in("video_id", videoIds),
-        supabase.from("follows").select("following_id").eq("follower_id", user.id).in("following_id", userIds),
+        supabase.from("follows").select("following_id").eq("follower_id", user.id).in("following_id", authorIds),
       ]);
 
       likedIds = new Set(likes?.map((l) => l.video_id) || []);
@@ -119,12 +117,12 @@ export const useVideos = (feedType: "foryou" | "following" = "foryou") => {
       const p = profileMap.get(v.user_id);
       return {
         ...v,
-        likes_count: v.likes_count || 0,
-        comments_count: v.comments_count || 0,
-        shares_count: v.shares_count || 0,
-        bookmarks_count: v.bookmarks_count || 0,
-        views_count: v.views_count || 0,
-        user_id: v.user_id,
+        audio_url: null,
+        likes_count: Math.max(0, v.likes_count || 0),
+        comments_count: Math.max(0, v.comments_count || 0),
+        shares_count: Math.max(0, v.shares_count || 0),
+        bookmarks_count: Math.max(0, v.bookmarks_count || 0),
+        views_count: Math.max(0, v.views_count || 0),
         user: {
           username: p?.username || "unknown",
           display_name: p?.display_name || "Unknown",
@@ -166,7 +164,6 @@ export const useVideos = (feedType: "foryou" | "following" = "foryou") => {
 
 export const useToggleLike = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ videoId, isLiked }: { videoId: string; isLiked: boolean }) => {
@@ -177,43 +174,11 @@ export const useToggleLike = () => {
         await supabase.from("likes").insert({ user_id: user.id, video_id: videoId });
       }
     },
-    onMutate: async ({ videoId, isLiked }) => {
-      // Optimistic update
-      await queryClient.cancelQueries({ queryKey: ["videos"] });
-      
-      const previousVideos = queryClient.getQueryData(["videos"]);
-      
-      queryClient.setQueryData(["videos"], (old: VideoWithProfile[] | undefined) => {
-        if (!old) return old;
-        return old.map((video) => {
-          if (video.id === videoId) {
-            return {
-              ...video,
-              isLiked: !isLiked,
-              likes_count: isLiked ? video.likes_count - 1 : video.likes_count + 1,
-            };
-          }
-          return video;
-        });
-      });
-      
-      return { previousVideos };
-    },
-    onError: (_err, { videoId, isLiked }, context) => {
-      // Rollback on error
-      if (context?.previousVideos) {
-        queryClient.setQueryData(["videos"], context.previousVideos);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["videos"] });
-    },
   });
 };
 
 export const useToggleBookmark = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ videoId, isBookmarked }: { videoId: string; isBookmarked: boolean }) => {
@@ -223,37 +188,6 @@ export const useToggleBookmark = () => {
       } else {
         await supabase.from("bookmarks").insert({ user_id: user.id, video_id: videoId });
       }
-    },
-    onMutate: async ({ videoId, isBookmarked }) => {
-      // Optimistic update
-      await queryClient.cancelQueries({ queryKey: ["videos"] });
-      
-      const previousVideos = queryClient.getQueryData(["videos"]);
-      
-      queryClient.setQueryData(["videos"], (old: VideoWithProfile[] | undefined) => {
-        if (!old) return old;
-        return old.map((video) => {
-          if (video.id === videoId) {
-            return {
-              ...video,
-              isBookmarked: !isBookmarked,
-              bookmarks_count: isBookmarked ? video.bookmarks_count - 1 : video.bookmarks_count + 1,
-            };
-          }
-          return video;
-        });
-      });
-      
-      return { previousVideos };
-    },
-    onError: (_err, { videoId, isBookmarked }, context) => {
-      // Rollback on error
-      if (context?.previousVideos) {
-        queryClient.setQueryData(["videos"], context.previousVideos);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["videos"] });
     },
   });
 };

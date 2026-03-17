@@ -85,25 +85,30 @@ const Discover = () => {
         .limit(10);
       setProfiles(profileData || []);
 
-      const { data: videosWithAudio } = await supabase
+      const { data: videosWithMusic } = await supabase
         .from("videos")
-        .select("id, audio_url, music_name, user_id")
-        .not("audio_url", "is", null)
-        .limit(10);
+        .select("id, music_name, user_id")
+        .not("music_name", "is", null)
+        .limit(50);
       
-      if (videosWithAudio) {
-        const uniqueSounds = videosWithAudio.reduce((acc: SoundData[], vid) => {
-          if (vid.music_name && !acc.find(s => s.title === vid.music_name)) {
-            acc.push({
-              id: vid.id,
-              title: vid.music_name || "Original Sound",
-              audio_url: vid.audio_url || "",
-              usage_count: Math.floor(Math.random() * 10000) + 100,
-              creator: "Unknown",
-            });
+      if (videosWithMusic) {
+        const countMap = new Map<string, { id: string; count: number }>();
+        videosWithMusic.forEach((vid) => {
+          const name = vid.music_name || "Original Sound";
+          const existing = countMap.get(name);
+          if (existing) {
+            existing.count++;
+          } else {
+            countMap.set(name, { id: vid.id, count: 1 });
           }
-          return acc;
-        }, []);
+        });
+        const uniqueSounds: SoundData[] = Array.from(countMap.entries()).map(([title, { id, count }]) => ({
+          id,
+          title,
+          audio_url: "",
+          usage_count: count,
+          creator: "Creator",
+        }));
         setSounds(uniqueSounds);
       }
     };

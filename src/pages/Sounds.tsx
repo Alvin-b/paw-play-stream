@@ -7,7 +7,6 @@ import BottomNav from '@/components/navigation/BottomNav';
 interface Sound {
   music_name: string;
   video_count: number;
-  preview_url: string;
 }
 
 const Sounds = () => {
@@ -18,13 +17,25 @@ const Sounds = () => {
 
   const fetchSounds = async (q: string) => {
     setLoading(true);
-const { data } = await supabase
+    const { data } = await supabase
       .from("videos")
-      .select("music_name, count(id) as video_count")
-      .not("music_name", "is", null)
-      .order("video_count", { ascending: false })
-      .limit(20);
-    setSounds(data || []);
+      .select("music_name")
+      .not("music_name", "is", null);
+    
+    // Group by music_name client-side
+    const countMap = new Map<string, number>();
+    (data || []).forEach((v) => {
+      const name = v.music_name || "original sound";
+      countMap.set(name, (countMap.get(name) || 0) + 1);
+    });
+    
+    const grouped: Sound[] = Array.from(countMap.entries())
+      .map(([music_name, video_count]) => ({ music_name, video_count }))
+      .filter((s) => !q || s.music_name.toLowerCase().includes(q.toLowerCase()))
+      .sort((a, b) => b.video_count - a.video_count)
+      .slice(0, 20);
+    
+    setSounds(grouped);
     setLoading(false);
   };
 
@@ -57,7 +68,7 @@ const { data } = await supabase
                 <Music className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-bold text-sm">{sound.music_name}</p>
+                <p className="font-bold text-sm text-foreground">{sound.music_name}</p>
                 <p className="text-xs text-muted-foreground">{sound.video_count} videos</p>
               </div>
               <Play className="w-4 h-4 text-foreground ml-auto" />
@@ -71,4 +82,3 @@ const { data } = await supabase
 };
 
 export default Sounds;
-

@@ -20,8 +20,8 @@ const formatCount = (num: number): string => {
 const InteractionSidebar = ({ video, onCommentClick, onShareClick }: InteractionSidebarProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const toggleLike = useToggleLike();
-  const toggleBookmark = useToggleBookmark();
+  const toggleLikeMutation = useToggleLike();
+  const toggleBookmarkMutation = useToggleBookmark();
   const [liked, setLiked] = useState(video.isLiked);
   const [bookmarked, setBookmarked] = useState(video.isBookmarked);
   const [likeCount, setLikeCount] = useState(video.likes);
@@ -31,8 +31,8 @@ const InteractionSidebar = ({ video, onCommentClick, onShareClick }: Interaction
     if (!user) { navigate("/login"); return; }
     const wasLiked = liked;
     setLiked(!wasLiked);
-    setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
-    await toggleLike(video.id, wasLiked);
+    setLikeCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+    toggleLikeMutation.mutate({ videoId: video.id, isLiked: wasLiked });
   };
 
   const handleBookmark = async (e: React.MouseEvent) => {
@@ -40,7 +40,7 @@ const InteractionSidebar = ({ video, onCommentClick, onShareClick }: Interaction
     if (!user) { navigate("/login"); return; }
     const wasBookmarked = bookmarked;
     setBookmarked(!wasBookmarked);
-    await toggleBookmark(video.id, wasBookmarked);
+    toggleBookmarkMutation.mutate({ videoId: video.id, isBookmarked: wasBookmarked });
   };
 
   const handleProfileClick = (e: React.MouseEvent) => {
